@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fab-simulator
+  namespace: hydrofab
+  labels:
+    app: fab-simulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fab-simulator
+  template:
+    metadata:
+      labels:
+        app: fab-simulator
+    spec:
+      containers:
+        - name: simulator
+          image: fab-simulator:latest
+          imagePullPolicy: Never
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fab-db-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: fab-db-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: fab-db-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: fab-db-config
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fab-db-secret
+                  key: DB_PASSWORD
+            - name: INTERVAL_SEC
+              value: "5"
+            - name: ANOMALY_CHANCE
+              value: "0.05"

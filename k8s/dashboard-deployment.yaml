@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fab-dashboard
+  namespace: hydrofab
+  labels:
+    app: fab-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fab-dashboard
+  template:
+    metadata:
+      labels:
+        app: fab-dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: fab-dashboard:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fab-dashboard
+  namespace: hydrofab
+spec:
+  selector:
+    app: fab-dashboard
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30420
+  type: NodePort

@@ -1,0 +1,93 @@
+version: "3.9"
+
+# ─────────────────────────────────────────
+# HydroFab — Docker Compose (Phase A)
+# Run with: docker-compose up --build
+# ─────────────────────────────────────────
+
+services:
+
+  # ── 1. PostgreSQL ──────────────────────
+  postgres:
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    container_name: fab-postgres
+    environment:
+      POSTGRES_DB: hydrofab
+      POSTGRES_USER: fab
+      POSTGRES_PASSWORD: fab_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fab -d hydrofab"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - fabnet
+    restart: unless-stopped
+
+  # ── 2. Python Simulator ────────────────
+  simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: fab-simulator
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: hydrofab
+      DB_USER: fab
+      DB_PASSWORD: fab_secret
+      INTERVAL_SEC: "5"
+      ANOMALY_CHANCE: "0.05"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fabnet
+    restart: unless-stopped
+
+  # ── 3. C# API ──────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: fab-api
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=hydrofab;Username=fab;Password=fab_secret"
+      ASPNETCORE_URLS: "http://+:5000"
+      ASPNETCORE_ENVIRONMENT: "Production"
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fabnet
+    restart: unless-stopped
+
+  # ── 4. Angular Dashboard ───────────────
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: fab-dashboard
+    ports:
+      - "4200:80"
+    depends_on:
+      - api
+    networks:
+      - fabnet
+    restart: unless-stopped
+
+# ─────────────────────────────────────────
+volumes:
+  postgres-data:
+
+networks:
+  fabnet:
+    driver: bridge

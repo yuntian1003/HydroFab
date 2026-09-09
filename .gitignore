@@ -1,0 +1,41 @@
+# ── Python ──────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# ── .NET ────────────────────────────────
+bin/
+obj/
+*.user
+.vs/
+*.suo
+.DS_Store
+.packages/
+
+# ── Angular / Node ───────────────────────
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.angular/
+*.js.map
+
+# ── Docker ──────────────────────────────
+*.log
+
+# ── Environment / Secrets ────────────────
+.env
+.env.local
+*.pem
+*.key
+
+# ── OS ───────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
