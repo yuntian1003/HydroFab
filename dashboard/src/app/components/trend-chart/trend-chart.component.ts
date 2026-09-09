@@ -190,7 +190,7 @@ export class TrendChartComponent implements OnChanges, OnDestroy {
         borderWidth: 1,
         padding: 12,
         cornerRadius: 8,
-        titleFont: { family: 'Inter', weight: '600' },
+        titleFont: { family: 'Inter', weight: 600 },
         bodyFont: { family: 'Inter' },
       },
     },
