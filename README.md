@@ -13,7 +13,7 @@
 
 ## Background & Motivation
 
-Intel's Penang, Malaysia semiconductor site sits in a region that experienced water rationing
+Malaysia semiconductor site sits in a region that experienced water rationing
 during droughts in 2023–2024, pushing local industrial facilities toward water recycling
 targets of **80% or higher**. Energy costs in the region also rose after subsidy changes in 2024.
 
