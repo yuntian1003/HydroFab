@@ -77,37 +77,54 @@ HydroFab/
 | Docker Desktop | 4.x+ |
 | (For K8s) Minikube or Docker Desktop K8s | Latest |
 
-### Option A — Docker Compose (recommended for first run)
+### Option A — Docker Compose (Recommended for Local Dev)
 
+#### 🚀 How to Start
 ```bash
-# Clone
+# 1. Clone the repository
 git clone https://github.com/yuntian1003/HydroFab.git
 cd HydroFab
 
-# Build and start all 4 services
-docker-compose up --build
+# 2. Build and start all services in the background
+docker-compose up -d --build
 
-# Open the dashboard
-start http://localhost:4200
+# 3. Open the services
+# Dashboard UI:
+http://localhost:4200
 
-# Swagger / API explorer
-start http://localhost:5000/swagger
+# API Explorer / Swagger:
+http://localhost:5000/swagger
+
+# Database Web Adminer (optional):
+http://localhost:8080 (Server: postgres, User: fab, Pass: fab_secret, DB: hydrofab)
 ```
 
-### Option B — Kubernetes (Minikube)
-
+#### 🛑 How to Stop
 ```bash
-# Start Minikube
-minikube start
+# Stop containers (preserves database data)
+docker-compose down
 
-# Build images into Minikube's Docker daemon
-eval $(minikube docker-env)
+# Or stop and completely wipe database data volume
+docker-compose down -v
+```
+
+---
+
+### Option B — Kubernetes (Production Orchestration Demo)
+
+Works with **Docker Desktop Kubernetes** or **Minikube**.
+
+#### 🚀 How to Start
+```bash
+# 1. Ensure Kubernetes is enabled (Docker Desktop Settings -> Kubernetes -> Enable) or run: minikube start
+
+# 2. Build container images
 docker build -t fab-postgres:latest ./db
 docker build -t fab-simulator:latest ./simulator
 docker build -t fab-api:latest ./api
 docker build -t fab-dashboard:latest ./dashboard
 
-# Apply manifests
+# 3. Deploy all Kubernetes manifests in order
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/config.yaml
 kubectl apply -f k8s/postgres-deployment.yaml
@@ -115,15 +132,37 @@ kubectl apply -f k8s/simulator-deployment.yaml
 kubectl apply -f k8s/api-deployment.yaml
 kubectl apply -f k8s/dashboard-deployment.yaml
 
-# Watch pods come up
-kubectl get pods -n hydrofab --watch
+# 4. Check pod status (wait until all 4 pods are 1/1 Running)
+kubectl get pods -n hydrofab
 
-# Open dashboard
-minikube service fab-dashboard -n hydrofab
+# 5. Access the application (Port-forward to host)
+# Terminal 1 - Frontend:
+kubectl port-forward svc/fab-dashboard 4200:80 -n hydrofab
 
-# Demo: self-healing
+# Terminal 2 - Backend API:
+kubectl port-forward svc/fab-api 5000:5000 -n hydrofab
+
+# 6. Open dashboard in browser:
+http://localhost:4200
+```
+
+#### 🌟 Live Demo: Self-Healing Architecture
+```bash
+# Intentionally delete the simulator pod while viewing the dashboard
 kubectl delete pod -l app=fab-simulator -n hydrofab
-kubectl get pods -n hydrofab   # watch it restart automatically
+
+# Immediately watch Kubernetes self-heal and spin up a replacement
+kubectl get pods -n hydrofab
+```
+
+#### 🛑 How to Stop & Clean Up
+```bash
+# 1. Stop port-forwards by pressing Ctrl + C in the terminals
+
+# 2. Delete the entire namespace and all associated resources (pods, services, deployments, PVCs)
+kubectl delete namespace hydrofab
+
+# 3. (Optional) Turn off Kubernetes in Docker Desktop Settings to save CPU & RAM when not in use
 ```
 
 ---
