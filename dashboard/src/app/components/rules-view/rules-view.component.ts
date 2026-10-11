@@ -126,6 +126,42 @@ import { Tool } from '../../models/models';
           </div>
         </div>
 
+        <!-- 4. Machine Learning Anomaly Detection Engine -->
+        <div class="rule-card rule-card--ml glass-card">
+          <div class="rule-icon-header">
+            <span class="rule-icon rule-icon--ml">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;color:var(--accent-cyan);">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </span>
+            <div>
+              <h3 class="rule-name">ML Multivariate Isolation Forest</h3>
+              <span class="rule-badge rule-badge--ml">Unsupervised Scikit-Learn Engine</span>
+            </div>
+          </div>
+          <p class="rule-desc">
+            Jointly evaluates water, power, and recycling as a 3D feature vector. Uses <strong>Isolation Forest</strong> and <strong>rolling Z-score</strong> baselines to flag subtle correlated drift.
+          </p>
+          <div class="threshold-levels">
+            <div class="threshold-level threshold-level--normal">
+              <span class="badge badge--normal">Nominal</span>
+              <span class="thresh-math">Score ≥ 0.0 &amp; Z &lt; 2.5σ</span>
+              <span class="thresh-desc">Operating within multi-sensor cluster</span>
+            </div>
+            <div class="threshold-level threshold-level--warning">
+              <span class="badge badge--warning">Warning</span>
+              <span class="thresh-math">Score &lt; 0.0 or Z ≥ 2.5σ</span>
+              <span class="thresh-desc">Statistical drift or multi-sensor anomaly</span>
+            </div>
+            <div class="threshold-level threshold-level--critical">
+              <span class="badge badge--critical">Critical</span>
+              <span class="thresh-math">Score &lt; −0.15 or Z ≥ 3.5σ</span>
+              <span class="thresh-desc">Severe out-of-distribution excursion</span>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- ── Per-Tool Limit Reference Table ── -->
@@ -272,6 +308,8 @@ import { Tool } from '../../models/models';
     .rule-icon--water { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); }
     .rule-icon--energy { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); }
     .rule-icon--recycling { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .rule-icon--ml { background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.35); box-shadow: 0 0 12px rgba(6, 182, 212, 0.2); }
+    .rule-badge--ml { color: var(--accent-cyan); font-weight: 700; }
 
     .rule-name {
       font-size: 1.05rem;

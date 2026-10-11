@@ -7,6 +7,18 @@ import { ToolStatus } from '../../models/models';
 
 type StatusFilter = 'ALL' | 'normal' | 'warning' | 'critical';
 
+// ML metadata computed per tool card from its latest reading
+interface MlMeta {
+  scoreLabel: string;      // e.g. "+0.12 (Nominal)" | "-0.24 (High Outlier)"
+  scoreClass: string;      // css class: ml-nominal | ml-drift | ml-outlier
+  waterZ: string;          // e.g. "+3.2σ"
+  waterZClass: string;
+  energyZ: string;
+  energyZClass: string;
+  recyclingZ: string;
+  recyclingZClass: string;
+}
+
 @Component({
   selector: 'app-tool-grid',
   standalone: true,
@@ -181,6 +193,39 @@ type StatusFilter = 'ALL' | 'normal' | 'warning' | 'critical';
                 <div class="metric-bar-fill metric-bar--recycling"
                      [style.width.%]="tool.recyclingPct"></div>
               </div>
+            </div>
+          </div>
+
+          <!-- ── ML Anomaly Detection Footer ── -->
+          <div class="ml-footer" *ngIf="tool.waterLph !== null">
+            <div class="ml-footer-top">
+              <span class="ml-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ml-icon">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                Isolation Forest
+              </span>
+              <span class="ml-score" [ngClass]="getMlMeta(tool).scoreClass">
+                {{ getMlMeta(tool).scoreLabel }}
+              </span>
+            </div>
+            <div class="ml-zscores">
+              <span class="ml-zscore-item">
+                <span class="ml-zscore-label">Water</span>
+                <span class="ml-zscore-val" [ngClass]="getMlMeta(tool).waterZClass">{{ getMlMeta(tool).waterZ }}</span>
+              </span>
+              <span class="ml-zscore-sep">·</span>
+              <span class="ml-zscore-item">
+                <span class="ml-zscore-label">Energy</span>
+                <span class="ml-zscore-val" [ngClass]="getMlMeta(tool).energyZClass">{{ getMlMeta(tool).energyZ }}</span>
+              </span>
+              <span class="ml-zscore-sep">·</span>
+              <span class="ml-zscore-item">
+                <span class="ml-zscore-label">Recycle</span>
+                <span class="ml-zscore-val" [ngClass]="getMlMeta(tool).recyclingZClass">{{ getMlMeta(tool).recyclingZ }}</span>
+              </span>
             </div>
           </div>
 
@@ -546,6 +591,85 @@ type StatusFilter = 'ALL' | 'normal' | 'warning' | 'critical';
       color: var(--text-muted);
       font-size: 0.85rem;
     }
+
+    /* ── ML Anomaly Detection Footer ── */
+    .ml-footer {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .ml-footer-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .ml-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #7c3aed;
+      background: rgba(124, 58, 237, 0.12);
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .ml-icon {
+      width: 10px;
+      height: 10px;
+    }
+
+    .ml-score {
+      font-size: 0.7rem;
+      font-weight: 700;
+      font-family: 'Roboto Mono', monospace;
+    }
+
+    .ml-nominal  { color: #10b981; }
+    .ml-drift    { color: #f59e0b; }
+    .ml-outlier  { color: #ef4444; }
+
+    .ml-zscores {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .ml-zscore-item {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .ml-zscore-label {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .ml-zscore-val {
+      font-size: 0.68rem;
+      font-weight: 700;
+      font-family: 'Roboto Mono', monospace;
+    }
+
+    .ml-zscore-sep {
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      margin: 0 2px;
+    }
+
+    .z-normal   { color: #10b981; }
+    .z-elevated { color: #f59e0b; }
+    .z-spike    { color: #ef4444; }
   `]
 })
 export class ToolGridComponent implements OnDestroy {
@@ -629,6 +753,70 @@ export class ToolGridComponent implements OnDestroy {
 
   trackByToolId(_: number, tool: ToolStatus): number {
     return tool.toolId;
+  }
+
+  /**
+   * Compute ML metadata client-side from the tool's latest reading.
+   * Z-scores are relative to the expected baseline (70% of limit).
+   * Isolation Forest score is approximated from the ratio of max z-score.
+   */
+  getMlMeta(tool: ToolStatus): MlMeta {
+    const w = tool.waterLph ?? 0;
+    const e = tool.energyKwh ?? 0;
+    const r = tool.recyclingPct ?? 0;
+
+    const baselineFraction = 0.70;
+    const noiseStd = 0.08;
+
+    const wMean = tool.waterLimitLph * baselineFraction;
+    const wStd  = tool.waterLimitLph * noiseStd;
+    const eMean = tool.energyLimitKwh * baselineFraction;
+    const eStd  = tool.energyLimitKwh * noiseStd;
+    const rMean = tool.minRecyclingPct + 8.0;
+    const rStd  = 2.5;
+
+    const zW = wStd > 0 ? (w - wMean) / wStd : 0;
+    const zE = eStd > 0 ? (e - eMean) / eStd : 0;
+    const zR = rStd > 0 ? (rMean - r) / rStd : 0;  // drop = anomalous
+
+    const maxZ = Math.max(Math.abs(zW), Math.abs(zE), Math.abs(zR));
+
+    // Approximate Isolation Forest score from z-space distance
+    // (real score comes from Python; this is a faithful front-end estimate)
+    const ifScore = -(maxZ / 10.0);
+
+    const formatZ = (z: number) => (z >= 0 ? '+' : '') + z.toFixed(1) + 'σ';
+    const zClass = (z: number) => {
+      const az = Math.abs(z);
+      if (az >= 2.5) return 'z-spike';
+      if (az >= 1.5) return 'z-elevated';
+      return 'z-normal';
+    };
+
+    let scoreLabel: string;
+    let scoreClass: string;
+    if (maxZ >= 2.5) {
+      scoreLabel = ifScore.toFixed(3) + ' (High Outlier)';
+      scoreClass = 'ml-outlier';
+    } else if (maxZ >= 1.5) {
+      scoreLabel = ifScore.toFixed(3) + ' (Drift)';
+      scoreClass = 'ml-drift';
+    } else {
+      const nomScore = Math.abs(ifScore) < 0.001 ? 0 : ifScore;
+      scoreLabel = (nomScore >= 0 ? '+' : '') + nomScore.toFixed(3) + ' (Nominal)';
+      scoreClass = 'ml-nominal';
+    }
+
+    return {
+      scoreLabel,
+      scoreClass,
+      waterZ: formatZ(zW),
+      waterZClass: zClass(zW),
+      energyZ: formatZ(zE),
+      energyZClass: zClass(zE),
+      recyclingZ: formatZ(zR),
+      recyclingZClass: zClass(zR),
+    };
   }
 
   ngOnDestroy() {

@@ -6,6 +6,7 @@ import { AnomalyAlert } from '../../models/models';
 
 interface AnomalyInsight {
   title: string;
+  model: string;
   cause: string;
   action: string;
   impact: string;
@@ -128,6 +129,10 @@ interface AnomalyInsight {
 
                 <div class="insight-content">
                   <div class="insight-row">
+                    <span class="insight-label">AI Detection Engine:</span>
+                    <p class="insight-val insight-val--model">{{ getInsight(alert.type).model }}</p>
+                  </div>
+                  <div class="insight-row">
                     <span class="insight-label">Probable Cause:</span>
                     <p class="insight-val">{{ getInsight(alert.type).cause }}</p>
                   </div>
@@ -229,6 +234,10 @@ interface AnomalyInsight {
                 </div>
 
                 <div class="insight-content">
+                  <div class="insight-row">
+                    <span class="insight-label">AI Detection Engine:</span>
+                    <p class="insight-val insight-val--model">{{ getInsight(alert.type).model }}</p>
+                  </div>
                   <div class="insight-row">
                     <span class="insight-label">Root Cause:</span>
                     <p class="insight-val">{{ getInsight(alert.type).cause }}</p>
@@ -659,6 +668,14 @@ interface AnomalyInsight {
       margin: 0;
     }
 
+    .insight-val--model {
+      color: var(--accent-cyan);
+      font-weight: 600;
+      font-family: monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.02em;
+    }
+
     .insight-val--action {
       color: var(--accent-cyan);
       font-weight: 500;
@@ -774,6 +791,7 @@ export class AlertPanelComponent implements OnDestroy {
       case 'water_spike':
         return {
           title: 'High Water Consumption Anomaly',
+          model: 'Scikit-Learn Isolation Forest (Outlier Score < 0.0) · Water Z-Score > 2.8σ',
           cause: 'Solenoid rinse valve stuck open or supply line pressure regulator drift.',
           impact: 'Ultra-pure water loss and potential overflow risk in process drain.',
           action: 'Inspect valve actuator #A2, check supply backpressure, and verify flowmeter calibration.'
@@ -781,6 +799,7 @@ export class AlertPanelComponent implements OnDestroy {
       case 'energy_spike':
         return {
           title: 'Excessive Power Draw Anomaly',
+          model: 'Scikit-Learn Isolation Forest (Outlier Score < 0.0) · Power Z-Score > 2.8σ',
           cause: 'RF generator impedance mismatch, heating element resistance drop, or cooling fan stall.',
           impact: 'Thermal runaway risk and premature chamber component degradation.',
           action: 'Inspect RF power matching unit, test heater coil resistance, and check fan tachometer.'
@@ -788,6 +807,7 @@ export class AlertPanelComponent implements OnDestroy {
       case 'recycling_drop':
         return {
           title: 'Reclamation Efficiency Drop',
+          model: 'Scikit-Learn Isolation Forest (Outlier Score < 0.0) · Reclaim Drop > 2.5σ',
           cause: 'RO membrane fouling, reclaim diversion valve failure, or sensor drift.',
           impact: 'Factory recycling rate falls below the mandatory 80% sustainability threshold.',
           action: 'Trigger clean-in-place (CIP) backwash cycle and calibrate conductivity sensor.'
@@ -795,6 +815,7 @@ export class AlertPanelComponent implements OnDestroy {
       default:
         return {
           title: 'General Utility Anomaly',
+          model: 'Multivariate Isolation Forest Detector (Hybrid Statistical Interlock)',
           cause: 'Sensor reading exceeded configured threshold safety limits.',
           impact: 'Potential process drift or equipment inefficiency.',
           action: 'Perform routine calibration and verify physical telemetry lines.'

@@ -1,8 +1,9 @@
 """
-HydroFab — Fab Utility Simulator
+HydroFab — Fab Utility Simulator & Machine Learning Anomaly Detector
 Generates realistic water/energy/recycling readings for 20 simulated
 fab tools and writes them to PostgreSQL every 5 seconds.
-~5 % of readings are deliberately anomalous (spikes / drops).
+Equipped with an unsupervised Scikit-Learn Isolation Forest & Rolling Z-Score
+engine for real-time multivariate anomaly detection.
 """
 
 import os
@@ -11,11 +12,13 @@ import time
 import random
 import signal
 import logging
+from collections import deque
 from datetime import datetime, timezone
 
 import numpy as np
 import psycopg2
 from psycopg2.extras import execute_values
+from sklearn.ensemble import IsolationForest
 
 # ---------------------------------------------------------------------------
 # Configuration (from environment, with sensible defaults)
@@ -147,26 +150,135 @@ def generate_reading(tool: dict) -> dict:
     }
 
 # ---------------------------------------------------------------------------
-# Threshold-based anomaly detection (runs on every reading)
+# Machine Learning Anomaly Detector (Isolation Forest + Rolling Z-Score)
 # ---------------------------------------------------------------------------
 
-def check_thresholds(tool: dict, reading: dict):
+class IsolationForestDetector:
     """
-    Return a list of (type, severity) tuples for any limit breaches,
-    *including* those that were not injected deliberately — this catches
-    edge-case normal readings that happen to exceed limits.
+    Unsupervised Multivariate Anomaly Detection Engine.
+    Combines:
+      1. Scikit-Learn IsolationForest for joint multi-sensor distribution modeling
+      2. Rolling Z-Score buffer for continuous dynamic tool baselining and feature attribution
+      3. Industrial safety envelope guardrails (failsafe interlock)
     """
-    alerts = []
-    if reading["water_lph"] > tool["water_limit_lph"]:
-        sev = "critical" if reading["water_lph"] > tool["water_limit_lph"] * 1.3 else "warning"
-        alerts.append(("water_spike", sev))
-    if reading["energy_kwh"] > tool["energy_limit_kwh"]:
-        sev = "critical" if reading["energy_kwh"] > tool["energy_limit_kwh"] * 1.3 else "warning"
-        alerts.append(("energy_spike", sev))
-    if reading["recycling_pct"] < tool["min_recycling_pct"]:
-        sev = "critical" if reading["recycling_pct"] < tool["min_recycling_pct"] - 15 else "warning"
-        alerts.append(("recycling_drop", sev))
-    return alerts
+    def __init__(self, tools: list[dict], contamination: float = 0.05, window_size: int = 50):
+        self.contamination = contamination
+        self.window_size = window_size
+        self.history: dict[int, deque] = {tool["id"]: deque(maxlen=window_size) for tool in tools}
+        self.models: dict[int, IsolationForest] = {}
+        self._initialize_models(tools)
+
+    def _initialize_models(self, tools: list[dict]):
+        """
+        Calibrate an Isolation Forest model per tool on nominal baseline operations.
+        Uses 300 synthetic reference observations per tool simulating normal operating jitter.
+        """
+        log.info("Calibrating Scikit-Learn Isolation Forest detectors for %d tools...", len(tools))
+        for tool in tools:
+            # Generate nominal training distribution
+            w_norm = np.random.normal(tool["water_limit_lph"] * BASELINE_FRACTION,
+                                      tool["water_limit_lph"] * BASELINE_NOISE, 300)
+            e_norm = np.random.normal(tool["energy_limit_kwh"] * BASELINE_FRACTION,
+                                      tool["energy_limit_kwh"] * BASELINE_NOISE, 300)
+            r_norm = np.random.normal(tool["min_recycling_pct"] + 8.0, 2.5, 300)
+
+            # Feature vector: [water_ratio, energy_ratio, recycle_ratio]
+            X_train = np.column_stack([
+                w_norm / tool["water_limit_lph"],
+                e_norm / tool["energy_limit_kwh"],
+                r_norm / tool["min_recycling_pct"],
+            ])
+
+            model = IsolationForest(
+                n_estimators=100,
+                contamination=self.contamination,
+                random_state=42 + tool["id"],
+                n_jobs=1,
+            )
+            model.fit(X_train)
+            self.models[tool["id"]] = model
+
+            # Pre-populate rolling history window
+            for w, e, r in zip(w_norm[-self.window_size:], e_norm[-self.window_size:], r_norm[-self.window_size:]):
+                self.history[tool["id"]].append((w, e, r))
+
+        log.info("✓ Isolation Forest detectors calibrated and active across all 20 tools.")
+
+    def detect(self, tool: dict, reading: dict) -> list[tuple[str, str, float]]:
+        """
+        Evaluate reading against Isolation Forest and Rolling Z-Score engine.
+        Returns a list of (anomaly_type, severity, ml_score) tuples.
+        """
+        tid = tool["id"]
+        w = reading["water_lph"]
+        e = reading["energy_kwh"]
+        r = reading["recycling_pct"]
+
+        # Feature vector normalized against tool limits
+        X_test = np.array([[
+            w / tool["water_limit_lph"],
+            e / tool["energy_limit_kwh"],
+            r / tool["min_recycling_pct"],
+        ]])
+
+        model = self.models.get(tid)
+        if not model:
+            return []
+
+        # Isolation Forest score: negative values indicate anomalies
+        score = float(model.decision_function(X_test)[0])
+        is_if_anomaly = model.predict(X_test)[0] == -1
+
+        # Rolling statistics for individual feature attribution
+        hist = self.history[tid]
+        if len(hist) >= 10:
+            arr = np.array(hist)
+            means = np.mean(arr, axis=0)
+            stds = np.std(arr, axis=0)
+            # Avoid division by zero
+            stds = np.maximum(stds, [0.5, 0.1, 0.5])
+            z_w = (w - means[0]) / stds[0]
+            z_e = (e - means[1]) / stds[1]
+            z_r = (means[2] - r) / stds[2]  # Drop is anomalous
+        else:
+            z_w = (w - tool["water_limit_lph"] * BASELINE_FRACTION) / (tool["water_limit_lph"] * BASELINE_NOISE)
+            z_e = (e - tool["energy_limit_kwh"] * BASELINE_FRACTION) / (tool["energy_limit_kwh"] * BASELINE_NOISE)
+            z_r = ((tool["min_recycling_pct"] + 8.0) - r) / 2.5
+
+        # Update sliding window (store normal points to avoid baseline drift poisoning)
+        if not is_if_anomaly and max(z_w, z_e, z_r) < 2.5:
+            hist.append((w, e, r))
+
+        # Industrial Safety Envelope Guardrails (physical limit checks)
+        breached_w = w > tool["water_limit_lph"]
+        breached_e = e > tool["energy_limit_kwh"]
+        breached_r = r < tool["min_recycling_pct"]
+
+        max_z = max(z_w, z_e, z_r)
+        has_anomaly = is_if_anomaly or max_z >= 2.5 or breached_w or breached_e or breached_r
+
+        if not has_anomaly:
+            return []
+
+        # Feature attribution: which metric contributed most to the anomaly?
+        z_dict = {"water_spike": z_w, "energy_spike": z_e, "recycling_drop": z_r}
+        primary_type = max(z_dict, key=z_dict.get)
+
+        # Severity classification:
+        # Critical if extreme ML anomaly (score < -0.15), extreme z-score (>= 3.5), or catastrophic limit breach (>130%)
+        is_critical = (
+            score < -0.15
+            or max_z >= 3.5
+            or (breached_w and w > tool["water_limit_lph"] * 1.3)
+            or (breached_e and e > tool["energy_limit_kwh"] * 1.3)
+            or (breached_r and r < tool["min_recycling_pct"] - 15)
+        )
+        severity = "critical" if is_critical else "warning"
+
+        log.info("[ML Anomaly] Tool '%s' (#%d): %s [%s] | IF Score: %.3f | Z-scores: W=%.2f, E=%.2f, R=%.2f",
+                 tool["name"], tid, primary_type, severity, score, z_w, z_e, z_r)
+
+        return [(primary_type, severity, score)]
 
 # ---------------------------------------------------------------------------
 # Main loop
@@ -175,6 +287,9 @@ def check_thresholds(tool: dict, reading: dict):
 def main():
     conn  = connect_db()
     tools = load_tools(conn)
+
+    # Initialize ML Anomaly Detector
+    detector = IsolationForestDetector(tools)
 
     log.info("Starting simulation loop  (interval=%ds, anomaly_chance=%.0f%%)",
              INTERVAL_SEC, ANOMALY_CHANCE * 100)
@@ -208,7 +323,7 @@ def main():
             # Map tool_id → reading_id for anomaly linking
             reading_id_map = {row[1]: row[0] for row in result}
 
-        # Detect anomalies (threshold check) and insert
+        # Detect anomalies using ML Isolation Forest & Rolling Z-Score engine
         anomaly_count = 0
         for tool, (_, water, energy, recycle, _) in zip(tools, reading_rows):
             reading_dict = {
@@ -216,8 +331,8 @@ def main():
                 "energy_kwh": energy,
                 "recycling_pct": recycle,
             }
-            alerts = check_thresholds(tool, reading_dict)
-            for atype, severity in alerts:
+            alerts = detector.detect(tool, reading_dict)
+            for atype, severity, _ in alerts:
                 anomaly_rows.append((
                     tool["id"],
                     reading_id_map[tool["id"]],
@@ -235,7 +350,7 @@ def main():
                 )
                 execute_values(cur, anomaly_sql, anomaly_rows)
 
-        log.info("Cycle %d  |  %d readings  |  %d anomalies detected",
+        log.info("Cycle %d  |  %d readings  |  %d anomalies detected [Isolation Forest Active]",
                  cycle, len(reading_rows), anomaly_count)
 
         # Sleep in small increments so shutdown is responsive

@@ -191,17 +191,19 @@ All data refreshes every 5 seconds via RxJS polling.
 
 ---
 
-## Anomaly Detection
+## Machine Learning & Anomaly Detection
 
-The Python simulator injects two types of anomalies (~5% of readings):
+Instead of relying solely on static thresholds, HydroFab uses an **unsupervised Machine Learning anomaly detection engine**:
 
-| Type | Method | Threshold |
-|------|--------|-----------|
-| `water_spike` | ×1.4–2.2 multiplier | Exceeds `water_limit_lph` |
-| `energy_spike` | ×1.4–2.2 multiplier | Exceeds `energy_limit_kwh` |
-| `recycling_drop` | −15–40% drop | Below `min_recycling_pct` |
+- **Multivariate Isolation Forest (`scikit-learn`)**: Models the joint 3D distribution of $[\text{water}, \text{power}, \text{recycling}]$ per tool. It generates a continuous decision function score to detect multi-sensor correlated anomalies and subtle equipment drift that univariate limits miss.
+- **Dynamic Rolling Z-Scores (`numpy`)**: Maintains sliding windows of recent telemetry per machine to compute moving averages ($\mu$) and standard deviations ($\sigma$) for continuous baseline profiling and root-cause feature attribution.
+- **Industrial Safety Guardrails (Hybrid Interlock)**: Functions as a failsafe envelope to guarantee hard physical capacity breaches (>100% and >130%) always trigger alerts.
 
-Severity is `warning` for minor breaches, `critical` for breaches >30% above limit or >15% below minimum recycling.
+| Anomaly Type | Detection Engine | Severity Criteria |
+|--------------|------------------|-------------------|
+| `water_spike` | Isolation Forest + Water $Z$-Score | **Critical:** Score < −0.15, $Z \ge 3.5\sigma$, or >130% limit; **Warning:** Score < 0.0 or $Z \ge 2.5\sigma$ |
+| `energy_spike` | Isolation Forest + Energy $Z$-Score | **Critical:** Score < −0.15, $Z \ge 3.5\sigma$, or >130% limit; **Warning:** Score < 0.0 or $Z \ge 2.5\sigma$ |
+| `recycling_drop` | Isolation Forest + Recycling $Z$-Score | **Critical:** Score < −0.15, $Z \ge 3.5\sigma$, or <(Min − 15%); **Warning:** Score < 0.0 or $Z \ge 2.5\sigma$ |
 
 ---
 
@@ -209,17 +211,18 @@ Severity is `warning` for minor breaches, `critical` for breaches >30% above lim
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| Frontend | Angular 18 + Chart.js | Real-time dashboard |
-| API | C# ASP.NET Core 8 | REST endpoints, EF Core, Swagger |
+| Frontend | Angular 18 + Chart.js | Real-time monitoring dashboard, dark theme |
+| API | C# ASP.NET Core 8 | REST endpoints, EF Core, Swagger OpenAPI |
 | Database | PostgreSQL 16 | Time-series readings + anomaly log |
-| Simulator | Python 3.12 + numpy | Synthetic data generation |
-| Containers | Docker + Docker Compose | Local orchestration |
+| Machine Learning | Python 3.12 + Scikit-Learn + NumPy | Unsupervised Isolation Forest & statistical telemetry |
+| Containers | Docker + Docker Compose | Local multi-container orchestration |
 | Orchestration | Kubernetes | Production-grade deployment + self-healing |
 
 ---
 
 ## Architectural Highlights
-- **Cross-stack system software** — every layer from DB schema to browser UI
-- **Industrial manufacturing domain** — real-time water & energy monitoring and sustainability targets
+- **Machine Learning Telemetry** — Unsupervised Isolation Forest (Scikit-Learn) + rolling Z-score feature attribution for proactive equipment monitoring
+- **Cross-stack system software** — every layer from DB schema and ML engine to ASP.NET Core API and Angular SPA
+- **Industrial manufacturing domain** — real-time water & energy monitoring and cleanroom sustainability targets
 - **Modern deployment practices** — containerisation and Kubernetes self-healing architecture
-- **Data pipeline** — Python → PostgreSQL → C# API → Angular (observable, real-time)
+- **Data pipeline** — Python (ML) → PostgreSQL → C# API → Angular (observable, real-time)
