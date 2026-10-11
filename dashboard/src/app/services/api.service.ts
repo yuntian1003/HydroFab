@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, interval, switchMap, startWith, shareReplay } from 'rxjs';
-import { Tool, ToolStatus, Reading, AnomalyAlert } from '../models/models';
+import { Observable, interval, switchMap, startWith, shareReplay, catchError, of } from 'rxjs';
+import { Tool, ToolStatus, Reading, AnomalyAlert, DailyLeaderboardEntry, AnalyticsSummary } from '../models/models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -22,10 +22,25 @@ export class ApiService {
     );
   }
 
+  getDailyLeaderboard(): Observable<DailyLeaderboardEntry[]> {
+    return this.http.get<DailyLeaderboardEntry[]>(`${this.baseUrl}/analytics/leaderboard`);
+  }
+
+  getAnalyticsSummary(): Observable<AnalyticsSummary> {
+    return this.http.get<AnalyticsSummary>(`${this.baseUrl}/analytics/summary`);
+  }
+
   resolveAlert(alertId: number): Observable<{ message: string; id: number }> {
     return this.http.patch<{ message: string; id: number }>(
       `${this.baseUrl}/alerts/${alertId}/resolve`,
       {}
+    );
+  }
+
+  getAlertHistory(): Observable<AnomalyAlert[]> {
+    return this.http.get<AnomalyAlert[]>(`${this.baseUrl}/alerts/history`).pipe(
+      catchError(() => this.http.get<AnomalyAlert[]>(`${this.baseUrl}/alerts?resolved=true`)),
+      catchError(() => of([]))
     );
   }
 
@@ -44,4 +59,26 @@ export class ApiService {
     switchMap(() => this.http.get<AnomalyAlert[]>(`${this.baseUrl}/alerts`)),
     shareReplay(1)
   );
+
+  /** Polls GET /api/alerts/history every 5s */
+  alertHistory$ = interval(this.pollInterval).pipe(
+    startWith(0),
+    switchMap(() => this.getAlertHistory()),
+    shareReplay(1)
+  );
+
+  /** Polls GET /api/analytics/leaderboard every 5s */
+  leaderboard$ = interval(this.pollInterval).pipe(
+    startWith(0),
+    switchMap(() => this.getDailyLeaderboard()),
+    shareReplay(1)
+  );
+
+  /** Polls GET /api/analytics/summary every 5s */
+  analyticsSummary$ = interval(this.pollInterval).pipe(
+    startWith(0),
+    switchMap(() => this.getAnalyticsSummary()),
+    shareReplay(1)
+  );
 }
+

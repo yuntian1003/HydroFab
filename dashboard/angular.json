@@ -32,7 +32,10 @@
               "budgets": [
                 { "type": "initial", "maximumWarning": "500kB", "maximumError": "1MB" }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "optimization": {
+                "fonts": false
+              }
             },
             "development": {
               "optimization": false,

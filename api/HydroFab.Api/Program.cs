@@ -52,11 +52,9 @@ var app = builder.Build();
 
 app.UseCors();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Enable Swagger for interactive API exploration
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // ------------------------------------------------------------------
 // Endpoints
@@ -65,6 +63,7 @@ if (app.Environment.IsDevelopment())
 app.MapToolEndpoints();
 app.MapReadingEndpoints();
 app.MapAlertEndpoints();
+app.MapAnalyticsEndpoints();
 
 // Health check
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTimeOffset.UtcNow }))

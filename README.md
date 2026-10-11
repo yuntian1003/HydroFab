@@ -1,7 +1,6 @@
 # HydroFab — Fab Utility Monitor
 
-> Real-time water & energy anomaly monitoring for semiconductor fab equipment.
-> A portfolio project targeting Intel's Software Development Internship.
+> Real-time water & energy anomaly monitoring for smart factory and semiconductor manufacturing equipment.
 
 [![Angular](https://img.shields.io/badge/Angular-18-red?logo=angular)](https://angular.io)
 [![C#](https://img.shields.io/badge/C%23-.NET_8-purple?logo=dotnet)](https://dotnet.microsoft.com)
@@ -13,11 +12,10 @@
 
 ## Background & Motivation
 
-Malaysia semiconductor site sits in a region that experienced water rationing
-during droughts in 2023–2024, pushing local industrial facilities toward water recycling
-targets of **80% or higher**. Energy costs in the region also rose after subsidy changes in 2024.
+Modern industrial manufacturing and semiconductor cleanrooms operate with high resource demands,
+pushing facilities toward water recycling targets of **80% or higher** alongside strict energy efficiency goals.
 
-Fabs need continuous visibility into utility usage *per machine* so that waste, leaks, or
+Factories need continuous visibility into utility usage *per machine* so that waste, leaks, or
 recycling-rate failures can be caught quickly — not discovered on a monthly bill.
 
 This project simulates that exact problem at small scale: 20 manufacturing "tools" (machines)
@@ -181,11 +179,8 @@ Severity is `warning` for minor breaches, `critical` for breaches >30% above lim
 
 ---
 
-## Relevance to Intel Internship
-
-This project deliberately mirrors the technical scope described in Intel's internship listing:
-
+## Architectural Highlights
 - **Cross-stack system software** — every layer from DB schema to browser UI
-- **Manufacturing-relevant domain** — water/energy monitoring is a real concern at Intel Penang
-- **Modern deployment practices** — containerisation and Kubernetes self-healing demo
+- **Industrial manufacturing domain** — real-time water & energy monitoring and sustainability targets
+- **Modern deployment practices** — containerisation and Kubernetes self-healing architecture
 - **Data pipeline** — Python → PostgreSQL → C# API → Angular (observable, real-time)

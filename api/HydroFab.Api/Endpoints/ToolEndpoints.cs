@@ -51,12 +51,14 @@ public static class ToolEndpoints
                             WHEN EXISTS (
                                 SELECT 1 FROM anomaly_events ae
                                 WHERE ae.tool_id = t.id
+                                  AND ae.reading_id = r.id
                                   AND ae.resolved = false
                                   AND ae.severity = 'critical'
                             ) THEN 'critical'
                             WHEN EXISTS (
                                 SELECT 1 FROM anomaly_events ae
                                 WHERE ae.tool_id = t.id
+                                  AND ae.reading_id = r.id
                                   AND ae.resolved = false
                                   AND ae.severity = 'warning'
                             ) THEN 'warning'

@@ -43,3 +43,33 @@ export interface AnomalyAlert {
   detectedAt: string;
   resolved: boolean;
 }
+
+export interface DailyLeaderboardEntry {
+  toolId: number;
+  toolName: string;
+  zone: string;
+  waterLimitLph: number;
+  energyLimitKwh: number;
+  minRecyclingPct: number;
+  criticalCount: number;
+  warningCount: number;
+  totalAnomalies: number;
+  resolvedCount: number;
+  lastIncident: string | null;
+}
+
+export interface AnalyticsSummary {
+  totalReadings: number;
+  totalAnomalies: number;
+  criticalCount: number;
+  warningCount: number;
+  resolvedCount: number;
+  unresolvedCount: number;
+  resolutionRatePct: number;
+  breakdown: {
+    waterSpikes: number;
+    energySpikes: number;
+    recyclingDrops: number;
+  };
+}
+

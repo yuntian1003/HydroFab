@@ -14,20 +14,26 @@ import { Reading } from '../../models/models';
     <div class="chart-section glass-card animate-in">
       <div class="chart-header">
         <h2 class="section-title">
-          <span class="title-icon">📈</span>
+          <svg class="section-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
           Trend Analysis
         </h2>
         <span class="chart-tool-name" *ngIf="toolId">
-          Tool #{{ toolId }}
+          {{ toolName || ('Tool #' + toolId) }}
         </span>
       </div>
 
       <div class="chart-placeholder" *ngIf="!toolId">
-        <div class="placeholder-icon">📊</div>
+        <svg class="placeholder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
         <p>Select a tool from the grid to view its trend data</p>
       </div>
 
-      <div class="chart-container" *ngIf="toolId">
+      <div class="chart-container" [class.chart-container--full]="fullPage" *ngIf="toolId">
         <canvas baseChart
           [data]="chartData"
           [options]="chartOptions"
@@ -64,7 +70,7 @@ import { Reading } from '../../models/models';
     }
 
     .section-title {
-      font-size: 1.3rem;
+      font-size: 1.15rem;
       font-weight: 700;
       color: var(--text-primary);
       display: flex;
@@ -72,36 +78,27 @@ import { Reading } from '../../models/models';
       gap: 8px;
     }
 
-    .title-icon { font-size: 1.1rem; }
-
-    .chart-tool-name {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      background: var(--bg-glass);
-      padding: 4px 12px;
-      border-radius: 20px;
-      border: 1px solid var(--border-subtle);
+    .section-svg {
+      width: 18px;
+      height: 18px;
+      color: var(--accent-cyan);
     }
 
-    .chart-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 60px 20px;
+    .placeholder-svg {
+      width: 44px;
+      height: 44px;
       color: var(--text-muted);
-      text-align: center;
-    }
-
-    .placeholder-icon {
-      font-size: 3rem;
       margin-bottom: 12px;
-      opacity: 0.5;
+      opacity: 0.4;
     }
 
     .chart-container {
       position: relative;
       height: 300px;
+    }
+
+    .chart-container--full {
+      height: 500px;
     }
 
     .chart-legend {
@@ -130,6 +127,8 @@ import { Reading } from '../../models/models';
 })
 export class TrendChartComponent implements OnChanges, OnDestroy {
   @Input() toolId: number | null = null;
+  @Input() toolName: string = '';
+  @Input() fullPage: boolean = false;
 
   private pollSub: Subscription | null = null;
 
